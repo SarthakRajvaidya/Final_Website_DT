@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MITAOE Student Records</title>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css" />
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.19.2/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    :root {
+      --bg-color: #f0f6ff;
+      --text-color: #000;
+      --card-bg: #fff;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #121212;
+      --text-color: #eee;
+      --card-bg: #1e1e1e;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: 'Segoe UI', sans-serif;
+      background: var(--bg-color);
+      color: var(--text-color);
+      transition: background 0.5s, color 0.5s;
+      overflow: hidden;
+    }
+
+    header, footer {
+      background: #003366;
+      color: white;
+      text-align: center;
+      padding: 15px;
+    }
+
+    nav a {
+      margin: 0 10px;
+      color: #ffcc00;
+      text-decoration: none;
+    }
+
+    .page {
+      height: calc(100vh - 130px);
+      overflow-y: auto;
+      padding: 30px 20px;
+      display: none;
+      animation: fadeIn 0.8s ease-in-out forwards;
+      box-sizing: border-box;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    .controls {
+      margin: 15px 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .controls input, .controls select, .controls button {
+      padding: 8px 12px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    .nav-buttons {
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    .nav-buttons button {
+      margin: 10px;
+      padding: 10px 18px;
+      background: #003366;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .toggle-theme {
+      position: fixed;
+      top: 15px;
+      right: 15px;
+      background: #222;
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    #welcomePage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      height: 100%;
+    }
+
+    #welcomePage img {
+      max-width: 200px;
+      margin-bottom: 20px;
+    }
+
+    canvas {
+      max-width: 100%;
+      height: auto;
+    }
+
+    @media screen and (max-width: 768px) {
+      .controls {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+
+    /* Chatbot styles */
+    #chatbotButton {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #003366;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 9999;
+    }
+
+    #chatbotPopup {
+      display: none;
+      position: fixed;
+      bottom: 90px;
+      right: 20px;
+      width: 300px;
+      max-height: 400px;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      z-index: 9998;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #chatbotHeader {
+      background-color: #003366;
+      color: white;
+      padding: 10px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    #chatbotMessages {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      font-size: 14px;
+    }
+
+    #chatbotInput {
+      display: flex;
+      border-top: 1px solid #ccc;
+    }
+
+    #chatbotInput input {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      outline: none;
+    }
+
+    #chatbotInput button {
+      padding: 8px 10px;
+      background-color: #003366;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    .bot { color: green; margin-bottom: 5px; }
+    .user { color: #333; margin-bottom: 5px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <button class="toggle-theme" onclick="toggleTheme()">Toggle Theme</button>
+
+  <header>
+    <h1>MITAOE - Student Records</h1>
+  </header>
+
+  <!-- Page 0: Welcome -->
+  <div class="page active" id="page-0">
+    <div id="welcomePage">
+      <img src="mitaoe.jpg" alt="MITAOE Logo">
+      <h2>🏠 Welcome to MITAOE Student Records Portal</h2>
+      <p>This platform allows you to explore academic records, filter by branch or year, and download reports with ease.</p>
+      <div class="nav-buttons">
+        <button onclick="goToPage(1)">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page 1: Table -->
+  <div class="page" id="page-1">
+    <h2 style="text-align:center;">📋 Student Records</h2>
+    <div class="controls">
+      <input type="text" id="searchInput" placeholder="Search by Name or Branch" />
+      <select id="branchFilter">
+        <option value="">All Branches</option>
+        <option value="Computer">Computer</option>
+        <option value="IT">IT</option>
+        <option value="Mechanical">Mechanical</option>
+        <option value="Civil">Civil</option>
+        <option value="ENTC">ENTC</option>
+        <option value="Electrical">Electrical</option>
+      </select>
+      <button onclick="downloadExcel()">Download Excel</button>
+      <button onclick="downloadPDF()">Download PDF</button>
+    </div>
+    <table id="studentsTable" class="display" style="width:100%">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Branch</th>
+          <th>Passing Year</th>
+          <th>Marks (%)</th>
+          <th>CGPA</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div class="nav-buttons">
+      <button onclick="goToPage(0)">← Previous</button>
+      <button onclick="goToPage(2)">Next →</button>
+    </div>
+  </div>
+
+  <!-- Page 2: Chart -->
+  <div class="page" id="page-2">
+    <h2 style="text-align:center;">📊 CGPA Distribution</h2>
+    <div style="max-width:600px; margin:auto;">
+      <canvas id="cgpaChart"></canvas>
+    </div>
+    <div class="nav-buttons">
+      <button onclick="goToPage(1)">← Previous</button>
+      <button onclick="goToPage(3)">Next →</button>
+    </div>
+  </div>
+
+  <!-- Page 3: About -->
+  <div class="page" id="page-3">
+    <h2 style="text-align:center;">ℹ️ About MITAOE</h2>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 20px; max-width: 800px; margin: auto;">
+      <img src="About.jpg" alt="MITAOE Campus" style="max-width: 300px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);" />
+      <p style="text-align: center;">
+        MIT Academy of Engineering (MITAOE) is a premier technical institute situated in Pune, India. It offers cutting-edge education in engineering and technology and is known for its innovative teaching methodologies, strong research culture, and state-of-the-art infrastructure.
+        <br /><br />
+        This portal is created to showcase the academic achievements of our alumni and provide easy access to past student records for administrative and academic purposes.
+      </p>
+    </div>
+    <div class="nav-buttons">
+      <button onclick="goToPage(2)">← Previous</button>
+    </div>
+  </div>
+
+  <footer>
+    <p>© 2025 MITAOE. All Rights Reserved.</p>
+  </footer>
+
+  <!-- Chatbot -->
+  <button id="chatbotButton">💬</button>
+  <div id="chatbotPopup">
+    <div id="chatbotHeader">MITAOE Bot</div>
+    <div id="chatbotMessages"></div>
+    <div id="chatbotInput">
+      <input type="text" id="userInput" placeholder="Type a message..." />
+      <button onclick="sendMessage()">▶</button>
+    </div>
+  </div>
+
+  <script>
+    const students = [];
+    const branches = ["Computer", "IT", "Mechanical", "Civil", "ENTC", "Electrical"];
+    const names = ["Aarav", "Vivaan", "Anaya", "Ishaan", "Diya", "Saanvi", "Krishna", "Riya", "Aditya", "Myra"];
+
+    for (let i = 1; i <= 300; i++) {
+      const name = `${names[Math.floor(Math.random() * names.length)]} ${names[Math.floor(Math.random() * names.length)]}`;
+      const branch = branches[Math.floor(Math.random() * branches.length)];
+      const year = Math.floor(Math.random() * (2023 - 2015 + 1)) + 2015;
+      const marks = (Math.random() * 100).toFixed(2);
+      const cgpa = (Math.random() * (10 - 6) + 6).toFixed(2);
+      students.push({ id: i, name, branch, year, marks, cgpa });
+    }
+
+    $(document).ready(function () {
+      const table = $('#studentsTable').DataTable({
+        data: students,
+        columns: [
+          { data: 'id' },
+          { data: 'name' },
+          { data: 'branch' },
+          { data: 'year' },
+          { data: 'marks' },
+          { data: 'cgpa' }
+        ]
+      });
+
+      $('#searchInput').on('keyup', function () {
+        table.search(this.value).draw();
+      });
+
+      $('#branchFilter').on('change', function () {
+        table.column(2).search(this.value).draw();
+      });
+
+      window.downloadExcel = function () {
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(students);
+        XLSX.utils.book_append_sheet(wb, ws, 'Students');
+        XLSX.writeFile(wb, 'students_records.xlsx');
+      };
+
+      window.downloadPDF = function () {
+        const { jsPDF } = window.jspdf;
+        html2canvas(document.querySelector("#studentsTable")).then((canvas) => {
+          const pdf = new jsPDF();
+          const imgData = canvas.toDataURL("image/png");
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+          pdf.save("students_records.pdf");
+        });
+      };
+
+      const buckets = { '6.0–6.9': 0, '7.0–7.9': 0, '8.0–8.9': 0, '9.0–10.0': 0 };
+      students.forEach(s => {
+        const cg = parseFloat(s.cgpa);
+        if (cg < 7) buckets['6.0–6.9']++;
+        else if (cg < 8) buckets['7.0–7.9']++;
+        else if (cg < 9) buckets['8.0–8.9']++;
+        else buckets['9.0–10.0']++;
+      });
+
+      new Chart(document.getElementById("cgpaChart"), {
+        type: "pie",
+        data: {
+          labels: Object.keys(buckets),
+          datasets: [{
+            data: Object.values(buckets),
+            backgroundColor: ["#f39c12", "#3498db", "#2ecc71", "#9b59b6"]
+          }]
+        },
+        options: {
+          plugins: {
+            title: {
+              display: true,
+              text: 'CGPA Distribution'
+            }
+          }
+        }
+      });
+    });
+
+    function toggleTheme() {
+      document.documentElement.toggleAttribute("data-theme");
+    }
+
+    function goToPage(index) {
+      document.querySelectorAll('.page').forEach((p, i) => {
+        p.classList.toggle('active', i === index);
+      });
+    }
+
+    // Chatbot functionality
+    const chatbotPopup = document.getElementById("chatbotPopup");
+    const chatbotButton = document.getElementById("chatbotButton");
+    const chatbotMessages = document.getElementById("chatbotMessages");
+    const userInput = document.getElementById("userInput");
+
+    chatbotButton.onclick = () => {
+      chatbotPopup.style.display = chatbotPopup.style.display === "flex" ? "none" : "flex";
+    };
+
+    function sendMessage() {
+      const msg = userInput.value.trim();
+      if (!msg) return;
+      chatbotMessages.innerHTML += `<div class="user">You: ${msg}</div>`;
+      userInput.value = "";
+
+      let reply = "I'm not sure. Please ask about records, CGPA, or MITAOE.";
+      const lower = msg.toLowerCase();
+      if (lower.includes("record") || lower.includes("data")) reply = "You can view student records on the 📋 Student Records page.";
+      else if (lower.includes("cgpa")) reply = "CGPA distribution is shown in the 📊 CGPA Distribution page.";
+      else if (lower.includes("download")) reply = "Use the buttons above the table to download records in Excel or PDF.";
+      else if (lower.includes("mitaoe")) reply = "MITAOE is a premier engineering college in Pune.";
+
+      chatbotMessages.innerHTML += `<div class="bot">Bot: ${reply}</div>`;
+      chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
+    }
+  </script>
+</body>
+</html>
